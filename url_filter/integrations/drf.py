@@ -141,10 +141,14 @@ class DjangoFilterBackend(BaseFilterBackend):
             :meth:`.get_filter_class`. If not given ``queryset`` is returned.
         """
         filter_class = self.get_filter_class(view, queryset)
+        query_params = request.query_params
+
+        if request.method == 'POST':
+            query_params = request.data
 
         if filter_class:
             _filter = filter_class(
-                data=request.query_params,
+                data=query_params,
                 queryset=queryset,
                 context=self.get_filter_context(request, view),
             )

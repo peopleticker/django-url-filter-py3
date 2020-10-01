@@ -9,7 +9,7 @@ from .validators import MaxLengthValidator, MinLengthValidator
 class MultipleValuesField(forms.CharField):
     """
     Custom Django field for validating/cleaning multiple
-    values given in a single value separated by a delimiter.
+    values given in a list.
 
     Parameters
     ----------
@@ -23,11 +23,7 @@ class MultipleValuesField(forms.CharField):
         By default no maximum is enforced.
     max_validators : list, optional
         Additional validators which should be used to validate
-        all values once split by the delimiter.
-    delimiter : str, optional
-        The delimiter by which the value will be split into
-        multiple values.
-        By default ``,`` is used.
+        all values once list provided.
     all_valid : bool, optional
         When ``False``, if any specific item does not pass validation
         it is ignored without failing complete field validation.
@@ -40,13 +36,11 @@ class MultipleValuesField(forms.CharField):
         min_values=2,
         max_values=None,
         many_validators=None,
-        delimiter=",",
         all_valid=True,
         *args,
         **kwargs
     ):
         self.child = child or forms.CharField()
-        self.delimiter = delimiter
         self.all_valid = all_valid
 
         super(MultipleValuesField, self).__init__(*args, **kwargs)
@@ -57,38 +51,27 @@ class MultipleValuesField(forms.CharField):
         if max_values:
             self.many_validators.append(MaxLengthValidator(max_values))
 
-    def clean(self, value):
+    def clean(self, values):
         """
         Custom ``clean`` which first validates the value first by using
         standard ``CharField`` and if all passes, it applies
         similar validations for each value once its split.
         """
-        value = self.to_python(value)
-        self.validate(value)
-        self.run_validators(value)
 
-        if not value:
+        if values is None:
             return
 
-        values = self.many_to_python(value)
+        if type(values) not in (list, tuple):
+            values = [values]
+
+        if len(values) == 0:
+            return
+
+        values = [self.child.clean(i) for i in values]
+
         self.many_validate(values)
         self.many_run_validators(values)
 
-        return values
-
-    def many_to_python(self, value):
-        """
-        Method responsible to split the value into multiple
-        values by using the delimiter and cleaning each one
-        as per the child field.
-        """
-        values = []
-        for i in value.split(self.delimiter):
-            try:
-                values.append(self.child.clean(i))
-            except forms.ValidationError:
-                if self.all_valid:
-                    raise
         return values
 
     def many_validate(self, values):

@@ -394,14 +394,16 @@ class FilterSet(six.with_metaclass(FilterSetMeta, BaseFilter)):
         Generate ``LookupConfig``s for all data in querystring data.
         """
         for key, values in self.data.lists():
-            for value in values:
-                yield LookupConfig(
-                    key,
-                    six.moves.reduce(
-                        lambda a, b: {b: a},
-                        (key.replace("!", "").split(LOOKUP_SEP) + [value])[::-1],
-                    ),
+            if len(values) == 1:
+                values = values[0]
+
+            yield LookupConfig(
+                key,
+                six.moves.reduce(
+                    lambda a, b: {b: a},
+                    (key.replace('!', '').split(LOOKUP_SEP) + [values])[::-1]
                 )
+            )
 
 
 class ModelFilterSetOptions(FilterSetOptions):
